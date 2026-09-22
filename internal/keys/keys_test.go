@@ -21,8 +21,28 @@ func TestNameMetadata(t *testing.T) {
 	if Name("bogus").EnvVar() != "" || Name("bogus").Display() != "bogus" {
 		t.Error("unknown names should degrade gracefully")
 	}
+	if got := Jev.EnvVars(); len(got) != 2 || got[0] != "JEV_API_KEY" || got[1] != "TYPESAFE_API_KEY" {
+		t.Errorf("Jev.EnvVars() = %v", got)
+	}
+	if got := Exa.EnvVars(); len(got) != 1 || got[0] != "EXA_API_KEY" {
+		t.Errorf("Exa.EnvVars() = %v", got)
+	}
+	if got := Jev.EnvVarsLabel(); got != "JEV_API_KEY or TYPESAFE_API_KEY" {
+		t.Errorf("Jev.EnvVarsLabel() = %q", got)
+	}
 	if len(SearchProviders) != 12 || len(All) != 13 || All[len(All)-1] != Jev {
 		t.Errorf("SearchProviders=%v All=%v", SearchProviders, All)
+	}
+	// EnvVarInUse names the variable actually holding the key, so `setup`
+	// does not report one the user never set.
+	t.Setenv("JEV_API_KEY", "")
+	t.Setenv("TYPESAFE_API_KEY", "ts")
+	if got := Jev.EnvVarInUse(); got != "TYPESAFE_API_KEY" {
+		t.Errorf("EnvVarInUse = %q, want TYPESAFE_API_KEY", got)
+	}
+	t.Setenv("JEV_API_KEY", "jev")
+	if got := Jev.EnvVarInUse(); got != "JEV_API_KEY" {
+		t.Errorf("EnvVarInUse = %q, want JEV_API_KEY", got)
 	}
 }
 

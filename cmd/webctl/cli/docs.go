@@ -13,7 +13,7 @@ import (
 
 // docTopics is the reading order for `docs all`; anything else in the
 // embedded set follows alphabetically.
-var docTopics = []string{"index", "search", "providers", "cooldowns", "filtering", "scraping", "dedupe", "config", "evals", "searxng"}
+var docTopics = []string{"index", "search", "fetch", "providers", "cooldowns", "filtering", "scraping", "dedupe", "config", "evals", "searxng"}
 
 // docSummary returns the first sentence after the title of a page.
 func docSummary(body string) string {

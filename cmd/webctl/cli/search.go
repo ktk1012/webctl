@@ -339,20 +339,7 @@ func resolveSearchOptions(cfg *config.Config, f searchFlags, args []string) (sea
 		opts.Num = f.num
 	}
 	if f.summarize || f.sumCommand != "" || f.sumModel != "" {
-		sc := cfg.Summarize
-		if f.sumCommand != "" {
-			sc.Command = f.sumCommand
-		}
-		if f.sumModel != "" {
-			sc.Model = f.sumModel
-			if f.sumCommand == "" {
-				sc.Command = "" // a model names the endpoint backend
-			}
-		}
-		if !sc.Configured() {
-			return searchOptions{}, errors.New("--summarize needs a backend: `webctl config set summarize.command '...'` or summarize.endpoint + summarize.model; see `webctl docs summarize`")
-		}
-		sm, err := newSummarizer(sc)
+		sm, err := resolveSummarizer(cfg, f.sumCommand, f.sumModel)
 		if err != nil {
 			return searchOptions{}, err
 		}
@@ -415,6 +402,26 @@ func resolveSearchOptions(cfg *config.Config, f searchFlags, args []string) (sea
 	return opts, nil
 }
 
+// resolveSummarizer builds the --summarize backend from the configured
+// settings plus this run's overrides. Shared with fetch, which offers the
+// same three flags.
+func resolveSummarizer(cfg *config.Config, command, model string) (summarize.Summarizer, error) {
+	sc := cfg.Summarize
+	if command != "" {
+		sc.Command = command
+	}
+	if model != "" {
+		sc.Model = model
+		if command == "" {
+			sc.Command = "" // a model names the endpoint backend
+		}
+	}
+	if !sc.Configured() {
+		return nil, errors.New("--summarize needs a backend: `webctl config set summarize.command '...'` or summarize.endpoint + summarize.model; see `webctl docs summarize`")
+	}
+	return newSummarizer(sc)
+}
+
 // parseRubric splits a comma-separated criteria list, lowest to highest.
 func parseRubric(s string) ([]string, error) {
 	var out []string
@@ -443,6 +450,11 @@ func runPipeline(ctx context.Context, cfg *config.Config, opts searchOptions, ou
 	if !opts.NoFilter || opts.FilterChunks {
 		var err error
 		if jevKey, err = cfg.JevKey(); err != nil {
+			// --no-filter is only a way out when the key is wanted for
+			// scoring; --filter-chunks needs Jev whatever else is set.
+			if !opts.FilterChunks {
+				return fmt.Errorf("%w, or pass --no-filter to skip qualification", err)
+			}
 			return err
 		}
 	}

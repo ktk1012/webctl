@@ -190,7 +190,7 @@ func configureKey(ctx context.Context, cfg *config.Config, store *keys.Store, n 
 
 func statusLabel(cfg *config.Config, store *keys.Store, n keys.Name) string {
 	if cfg.KeySource[n] == "env" {
-		return fmt.Sprintf("[set via %s]", n.EnvVar())
+		return fmt.Sprintf("[set via %s]", n.EnvVarInUse())
 	}
 	if store.Has(n) {
 		return "[configured " + keys.Mask(store.Get(n)) + "]"

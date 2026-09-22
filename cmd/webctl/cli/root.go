@@ -51,6 +51,9 @@ page, add --scrape --filter-chunks instead: webctl fetches the top
 results and returns only the chunks Jev finds relevant, so a long
 thread, PDF, or article costs a fraction of the tokens.
 
+Already have the URL? "webctl fetch <url> --goal ..." does the same to
+a page you name, without running a search.
+
 Help text is short by design. The full reference is compiled in:
   webctl docs            topics
   webctl docs <topic>    one page (search, providers, config, ...)
@@ -97,6 +100,7 @@ chunks Jev judges relevant to the goal are returned.`,
 	}
 	addSearchFlags(search)
 	root.AddCommand(search)
+	root.AddCommand(newFetchCmd())
 	root.AddCommand(newSetupCmd())
 	root.AddCommand(newKeysCmd())
 	root.AddCommand(newConfigCmd())

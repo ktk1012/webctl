@@ -59,14 +59,43 @@ var SearchProviders = []Name{Brave, Exa, Parallel, Sonar, Youcom, Tavily, Firecr
 // All lists every key name, search providers first.
 var All = append(append([]Name{}, SearchProviders...), Jev)
 
+// envAliases lists further environment variables accepted for a slot, tried
+// after its own. Jev has one because TypeSafe's own SDKs read
+// TYPESAFE_API_KEY, so a machine already set up for them needs no second
+// variable holding the same secret.
+var envAliases = map[Name][]string{
+	Jev: {"TYPESAFE_API_KEY"},
+}
+
 // Secret reports whether the slot holds a credential that should be masked.
 func (n Name) Secret() bool { return !specs[n].isURL }
 
 // IsURL reports whether the slot holds an instance URL.
 func (n Name) IsURL() bool { return specs[n].isURL }
 
-// EnvVar returns the environment variable that overrides this key.
+// EnvVar returns the canonical environment variable for this key, which is
+// the one to name when asking for a key that is not configured.
 func (n Name) EnvVar() string { return specs[n].env }
+
+// EnvVars returns every environment variable that sets this key, canonical
+// name first; an earlier one wins over a later one.
+func (n Name) EnvVars() []string {
+	return append([]string{specs[n].env}, envAliases[n]...)
+}
+
+// EnvVarsLabel renders the accepted variables for an error message.
+func (n Name) EnvVarsLabel() string { return strings.Join(n.EnvVars(), " or ") }
+
+// EnvVarInUse returns whichever accepted variable currently holds this key,
+// falling back to the canonical name when none is set.
+func (n Name) EnvVarInUse() string {
+	for _, env := range n.EnvVars() {
+		if os.Getenv(env) != "" {
+			return env
+		}
+	}
+	return specs[n].env
+}
 
 // Display returns a human-friendly label for the key.
 func (n Name) Display() string {

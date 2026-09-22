@@ -116,7 +116,7 @@ func New() *viper.Viper {
 
 	// Keys use their conventional unprefixed env vars.
 	for _, n := range keys.All {
-		_ = v.BindEnv(keyField(n), n.EnvVar())
+		_ = v.BindEnv(append([]string{keyField(n)}, n.EnvVars()...)...)
 	}
 	return v
 }
@@ -328,10 +328,12 @@ func (c *Config) Usable(name string) bool {
 }
 
 // JevKey returns the Jev API key, with an actionable error if it's missing.
+// The caller adds any advice specific to its own flags: --no-filter is one
+// way out of this for a search and no way out at all for a fetch.
 func (c *Config) JevKey() (string, error) {
 	key := c.Keys.Get(keys.Jev)
 	if key == "" {
-		return "", fmt.Errorf("no Jev API key configured: run `webctl setup`, set %s, or pass --no-filter to skip qualification", keys.Jev.EnvVar())
+		return "", fmt.Errorf("no Jev API key configured: run `webctl setup` or set %s", keys.Jev.EnvVarsLabel())
 	}
 	return key, nil
 }

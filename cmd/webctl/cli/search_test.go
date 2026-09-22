@@ -167,7 +167,9 @@ type harness struct {
 func newHarness(t *testing.T, store keys.Store) *harness {
 	t.Helper()
 	for _, n := range keys.All {
-		t.Setenv(n.EnvVar(), "")
+		for _, env := range n.EnvVars() {
+			t.Setenv(env, "")
+		}
 	}
 	for _, k := range []string{"PROVIDER", "NUM", "MIN_SCORE", "MIN_RESULTS", "JEV_BASE_URL", "JEV_MODEL"} {
 		t.Setenv(config.EnvPrefix+"_"+k, "")

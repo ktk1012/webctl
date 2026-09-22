@@ -13,7 +13,9 @@ import (
 func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, n := range keys.All {
-		t.Setenv(n.EnvVar(), "")
+		for _, env := range n.EnvVars() {
+			t.Setenv(env, "")
+		}
 	}
 	for _, k := range []string{"PROVIDER", "NUM", "MIN_SCORE", "JEV_BASE_URL", "JEV_MODEL", "SOURCES", "MIN_RESULTS", "COOLDOWN_ENABLED", "COOLDOWN_STEPS"} {
 		t.Setenv(EnvPrefix+"_"+k, "")
@@ -241,12 +243,42 @@ func TestLoadSearXNGURLFromConfigYAML(t *testing.T) {
 
 func TestJevKey(t *testing.T) {
 	cfg := &Config{Keys: &keys.Store{}}
-	if _, err := cfg.JevKey(); err == nil || !strings.Contains(err.Error(), "--no-filter") {
-		t.Errorf("missing jev key should suggest --no-filter: %v", err)
+	if _, err := cfg.JevKey(); err == nil || !strings.Contains(err.Error(), "webctl setup") {
+		t.Errorf("missing jev key should say how to configure one: %v", err)
 	}
 	cfg.Keys.Set(keys.Jev, "j")
 	if k, err := cfg.JevKey(); err != nil || k != "j" {
 		t.Errorf("jev = %q, %v", k, err)
+	}
+}
+
+// The Jev key is also read from TYPESAFE_API_KEY, the variable TypeSafe's own
+// SDKs use, so a machine already set up for them needs no second copy of the
+// secret. JEV_API_KEY stays canonical and wins when both are set.
+func TestJevKeyFromTypeSafeEnv(t *testing.T) {
+	dir := t.TempDir()
+	keysPath := filepath.Join(dir, "keys.json")
+
+	clearEnv(t)
+	t.Setenv("TYPESAFE_API_KEY", "ts")
+	cfg, err := Load(Options{Dir: dir, KeysPath: keysPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := cfg.JevKey(); err != nil || got != "ts" {
+		t.Errorf("jev = %q, %v; want ts", got, err)
+	}
+	if cfg.KeySource[keys.Jev] != "env" {
+		t.Errorf("KeySource = %q, want env", cfg.KeySource[keys.Jev])
+	}
+
+	t.Setenv("JEV_API_KEY", "jev")
+	cfg, err = Load(Options{Dir: dir, KeysPath: keysPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := cfg.JevKey(); got != "jev" {
+		t.Errorf("jev = %q; want the canonical variable to win", got)
 	}
 }
 

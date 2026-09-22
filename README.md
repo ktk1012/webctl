@@ -39,6 +39,8 @@ webctl setup        # asks for your Jev key
 webctl search "mechanistic interpretability 2026" --goal "Recent papers on sparse autoencoders and circuit analysis"
 ```
 
+Already have `TYPESAFE_API_KEY` set for TypeSafe's SDKs? That is read as the Jev key too, so step 3 is just the search.
+
 Searching does not strictly require a key: with none configured, webctl calls the keyless Exa, Parallel, Keenable, You.com, and Firecrawl endpoints directly, then DuckDuckGo. Those throttle by IP after a few dozen searches a day, and webctl backs off with a cooldown ladder, so expect thin results without a key.
 
 The author prefers [Brave Search](https://brave.com/search/api/): 5,000 free searches a month, requires an API key. It is the first choice in `webctl setup`; once any search key is configured, only your keyed providers are used. ([docs/providers.md](docs/providers.md))
@@ -211,6 +213,15 @@ webctl search "q" --scrape --filter-chunks
 webctl search "q" --scrape --max-chars 20000  # default 50000 per page
 webctl search "q" --scrape --filter-chunks --chunk-chars 1000  # default 2000
 webctl search "q" --scrape --scrape-top 5 --max-output 40000  # defaults 3 and 20000
+```
+
+### Fetch
+
+`webctl fetch <url>...` applies the same reduction to pages you already have the address for: fetch, chunk, and keep only what Jev judges relevant to the goal. For the case where finding is not the problem — a link from a colleague, a changelog, an error message, a page you already know you need. `--goal` is required, since with no query it is the entire basis of the judgment. No search runs, so it costs no search quota and works while every provider is cooling down. [docs/fetch.md](docs/fetch.md)
+
+```bash
+webctl fetch https://kafka.apache.org/documentation/ --goal "what acks=all does when the ISR shrinks"
+webctl fetch https://a.example/post https://b.example/thread --goal "g" --summarize
 ```
 
 ### Benchmarks
