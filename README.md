@@ -170,6 +170,17 @@ npm install -g webctl
 go install github.com/dorkitude/webctl/cmd/webctl@latest
 ```
 
+### Nix
+
+The repository is a flake, so it builds without a checkout and carries shell completions with it.
+
+```bash
+nix run github:dorkitude/webctl -- search "q" --goal "g"
+nix profile install github:dorkitude/webctl
+```
+
+In a flake of your own, take it as an input and install `webctl.packages.${system}.default`, or apply `webctl.overlays.default` and use `pkgs.webctl`. `nix develop` gives you Go and the language server for working on it.
+
 ## Usage
 
 ### Search

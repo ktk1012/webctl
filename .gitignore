@@ -22,3 +22,7 @@ node_modules/
 
 # Go test artifacts
 coverage.out
+
+# Nix build results
+/result
+/result-*
