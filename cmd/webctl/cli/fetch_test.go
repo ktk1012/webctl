@@ -173,6 +173,39 @@ func TestFetchSummarize(t *testing.T) {
 	}
 }
 
+// --summarize-model reaches a command backend when no endpoint is configured,
+// and keeps selecting the endpoint when one is.
+func TestSummarizeModelRouting(t *testing.T) {
+	var got summarize.Config
+	orig := newSummarizer
+	newSummarizer = func(cfg summarize.Config) (summarize.Summarizer, error) {
+		got = cfg
+		return &fakeSummarizer{}, nil
+	}
+	t.Cleanup(func() { newSummarizer = orig })
+
+	h := newHarness(t, allKeys())
+	h.withScraper(map[string]string{paper.URL: threeParagraphs}, nil)
+	t.Setenv("WEBCTL_SUMMARIZE_COMMAND", "cfg-cmd")
+	t.Setenv("WEBCTL_SUMMARIZE_ENDPOINT", "")
+	t.Setenv("WEBCTL_SUMMARIZE_MODEL", "")
+
+	if _, _, err := h.run("fetch", paper.URL, "--goal", "g", "--summarize", "--summarize-model", "haiku"); err != nil {
+		t.Fatal(err)
+	}
+	if got.Backend() != summarize.BackendCommand || got.Command != "cfg-cmd" || got.Model != "haiku" {
+		t.Errorf("command only: %s backend %q with model %q, want the command with haiku", got.Backend(), got.Command, got.Model)
+	}
+
+	t.Setenv("WEBCTL_SUMMARIZE_ENDPOINT", "https://api.example/v1")
+	if _, _, err := h.run("fetch", paper.URL, "--goal", "g", "--summarize", "--summarize-model", "big-model"); err != nil {
+		t.Fatal(err)
+	}
+	if got.Backend() != summarize.BackendEndpoint || got.Model != "big-model" {
+		t.Errorf("with an endpoint: %s backend with model %q, want the endpoint with big-model", got.Backend(), got.Model)
+	}
+}
+
 // --max-output trims page content and says so, while the header that names
 // the page always survives.
 func TestFetchMaxOutput(t *testing.T) {

@@ -88,7 +88,7 @@ func addSearchFlags(cmd *cobra.Command) {
 	f.IntVar(&sf.scrapeTop, "scrape-top", DefaultScrapeTop, "with --scrape, fetch only the N best-scoring kept results; 0 = all")
 	f.BoolVar(&sf.summarize, "summarize", false, "with --scrape, replace each page's kept text with a short summary from a small model (see `webctl docs summarize`)")
 	f.StringVar(&sf.sumCommand, "summarize-command", "", "summarizer command for this run, e.g. 'claude -p --model haiku' (overrides summarize.command)")
-	f.StringVar(&sf.sumModel, "summarize-model", "", "model for the configured summarize.endpoint for this run")
+	f.StringVar(&sf.sumModel, "summarize-model", "", "summarizer model for this run: sent to summarize.endpoint, or to summarize.command as $WEBCTL_SUMMARIZE_MODEL")
 	f.IntVar(&sf.maxOutput, "max-output", DefaultMaxOutput, "cap printed output in characters, trimming scraped content top-down; 0 = unlimited")
 	f.BoolVar(&sf.jsonOut, "json", false, "JSON output")
 	f.BoolVar(&sf.urlsOnly, "urls-only", false, "one URL per line")
@@ -412,8 +412,10 @@ func resolveSummarizer(cfg *config.Config, command, model string) (summarize.Sum
 	}
 	if model != "" {
 		sc.Model = model
-		if command == "" {
-			sc.Command = "" // a model names the endpoint backend
+		// A model names the endpoint backend when there is one to name;
+		// with only a command configured, the command receives the model.
+		if command == "" && strings.TrimSpace(sc.Endpoint) != "" {
+			sc.Command = ""
 		}
 	}
 	if !sc.Configured() {

@@ -6,7 +6,8 @@
 // Two backends, chosen by configuration:
 //
 //   - Command: any CLI that reads a prompt on stdin and prints the summary
-//     on stdout (claude -p, codex exec, pi -p, llm, ...).
+//     on stdout (claude -p, codex exec, pi -p, llm, ...). A configured
+//     model reaches it as $WEBCTL_SUMMARIZE_MODEL.
 //   - Endpoint: an OpenAI-compatible /chat/completions URL with a model
 //     name and an API key (Fireworks, OpenAI, Anthropic's compatibility
 //     endpoint, a local server).
@@ -38,6 +39,18 @@ const (
 	NothingRelevant = "NOTHING RELEVANT"
 )
 
+// ModelEnv carries the configured model into a command backend, so one
+// command line can serve several models ("claude -p --model
+// \"$WEBCTL_SUMMARIZE_MODEL\""). It is also the variable that sets
+// summarize.model, so an exported value reaches the command either way.
+const ModelEnv = "WEBCTL_SUMMARIZE_MODEL"
+
+// Backend names.
+const (
+	BackendCommand  = "command"
+	BackendEndpoint = "endpoint"
+)
+
 // Config selects and parameterises a backend. Command wins when both are
 // set. Zero value means summarizing is not configured.
 type Config struct {
@@ -47,7 +60,8 @@ type Config struct {
 	// Endpoint is an OpenAI-compatible base URL (".../v1") or a full
 	// /chat/completions URL.
 	Endpoint string
-	// Model is the model name sent to Endpoint.
+	// Model is the model name sent to Endpoint, or handed to Command as
+	// $WEBCTL_SUMMARIZE_MODEL; empty leaves a command to its own default.
 	Model string
 	// APIKey is sent as a Bearer token to Endpoint. Empty means none.
 	APIKey string
@@ -60,10 +74,20 @@ type Config struct {
 	Timeout time.Duration
 }
 
-// Configured reports whether any backend is set.
-func (c Config) Configured() bool {
-	return strings.TrimSpace(c.Command) != "" || strings.TrimSpace(c.Endpoint) != ""
+// Backend names the backend c selects: BackendCommand, BackendEndpoint, or
+// "" when nothing is configured.
+func (c Config) Backend() string {
+	switch {
+	case strings.TrimSpace(c.Command) != "":
+		return BackendCommand
+	case strings.TrimSpace(c.Endpoint) != "":
+		return BackendEndpoint
+	}
+	return ""
 }
+
+// Configured reports whether any backend is set.
+func (c Config) Configured() bool { return c.Backend() != "" }
 
 // Input is one page to summarize.
 type Input struct {
@@ -99,10 +123,10 @@ func New(cfg Config) (Summarizer, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case strings.TrimSpace(cfg.Command) != "":
-		return &commandSummarizer{cmd: strings.TrimSpace(cfg.Command), timeout: cfg.Timeout, prompt: p}, nil
-	case strings.TrimSpace(cfg.Endpoint) != "":
+	switch cfg.Backend() {
+	case BackendCommand:
+		return &commandSummarizer{cmd: strings.TrimSpace(cfg.Command), model: strings.TrimSpace(cfg.Model), timeout: cfg.Timeout, prompt: p}, nil
+	case BackendEndpoint:
 		if strings.TrimSpace(cfg.Model) == "" {
 			return nil, errors.New("summarize: endpoint needs a model (summarize.model)")
 		}
@@ -140,6 +164,7 @@ func IsNothing(summary string) bool {
 
 type commandSummarizer struct {
 	cmd     string
+	model   string
 	timeout time.Duration
 	prompt  *prompts.Prompt
 }
@@ -156,6 +181,11 @@ func (c *commandSummarizer) Summarize(ctx context.Context, in Input) (string, Us
 	cmd := exec.CommandContext(ctx, "sh", "-c", c.cmd)
 	cmd.Stdin = strings.NewReader(prompt)
 	cmd.Env = os.Environ()
+	if c.model != "" {
+		// Appended after the inherited environment, so a --summarize-model
+		// for this run wins over an exported value.
+		cmd.Env = append(cmd.Env, ModelEnv+"="+c.model)
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {

@@ -8,7 +8,7 @@ Use it when scraped chunks are still too long to read, or when several pages say
 
 Two kinds, chosen by configuration. A command wins when both are set.
 
-**Command.** Any CLI that reads the prompt on stdin and prints the summary on stdout. Run through `sh -c`, so pipes and flags work.
+**Command.** Any CLI that reads the prompt on stdin and prints the summary on stdout. Run through `sh -c`, so pipes and flags work. A configured model arrives as `$WEBCTL_SUMMARIZE_MODEL`, so one command line can serve several models: `claude -p --model "${WEBCTL_SUMMARIZE_MODEL:-sonnet}"` uses Sonnet unless a model is given.
 
 **Endpoint.** Any OpenAI-compatible `/chat/completions` URL with a model name and a bearer key. `summarize.reasoning_effort` (default `none`) is sent so reasoning models answer instead of thinking; a server that rejects the field gets one retry without it.
 
@@ -20,14 +20,14 @@ The page that has nothing for the goal comes back as "nothing relevant" and prin
 |---|---|---|---|
 | `summarize.command` | `WEBCTL_SUMMARIZE_COMMAND` | | shell command; prompt on stdin, summary on stdout |
 | `summarize.endpoint` | `WEBCTL_SUMMARIZE_ENDPOINT` | | OpenAI-compatible base URL (`.../v1`) or full `/chat/completions` URL |
-| `summarize.model` | `WEBCTL_SUMMARIZE_MODEL` | | model name for the endpoint |
+| `summarize.model` | `WEBCTL_SUMMARIZE_MODEL` | | model name for the endpoint, or `$WEBCTL_SUMMARIZE_MODEL` for the command |
 | `summarize.api_key_env` | `WEBCTL_SUMMARIZE_API_KEY_ENV` | by host | env var holding the key: `FIREWORKS_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` are guessed from the URL |
 | `summarize.api_key` | `WEBCTL_SUMMARIZE_API_KEY` | | the key itself; prefer the env var |
 | `summarize.max_tokens` | `WEBCTL_SUMMARIZE_MAX_TOKENS` | 500 | summary length cap at the endpoint |
 | `summarize.reasoning_effort` | `WEBCTL_SUMMARIZE_REASONING_EFFORT` | `none` | sent to the endpoint; empty omits it |
 | `summarize.timeout` | `WEBCTL_SUMMARIZE_TIMEOUT` | `60s` | per page |
 
-Per run: `--summarize-command '<cmd>'` and `--summarize-model <name>` override the configured values.
+Per run: `--summarize-command '<cmd>'` and `--summarize-model <name>` override the configured values. A model given for the run selects the endpoint when one is configured; with only a command, the command receives it.
 
 ## Recommended models
 
@@ -64,6 +64,15 @@ Claude Haiku through the Claude Code CLI (no key handling; uses your login):
 ```bash
 webctl config set summarize.command 'claude -p --model haiku --no-session-persistence'
 ```
+
+Each summary started that way is a full Claude Code session: it runs your hooks, reads your CLAUDE.md files and auto-memory, and connects your MCP servers, once per page. `--bare` would skip all of that but reads no OAuth login, so with a subscription the quiet form is spelled out instead. This one also leaves the model to the run, Sonnet by default:
+
+```bash
+webctl config set summarize.command 'CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 claude -p --model "${WEBCTL_SUMMARIZE_MODEL:-sonnet}" --no-session-persistence --tools "" --strict-mcp-config --disable-slash-commands --settings '\''{"disableAllHooks":true,"language":"English"}'\'''
+webctl fetch <url> --goal "g" --summarize --summarize-model haiku   # one call on Haiku
+```
+
+`language` matters only if your settings set a response language: the summary lands in an agent's context, where English costs the fewest tokens.
 
 Claude Haiku through Anthropic's OpenAI-compatible endpoint:
 

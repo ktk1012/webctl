@@ -38,6 +38,31 @@ func TestCommandBackendGetsPromptOnStdinAndReturnsStdout(t *testing.T) {
 	}
 }
 
+// The configured model reaches a command as $WEBCTL_SUMMARIZE_MODEL, so one
+// command line can serve several models; with none configured the command
+// falls back to its own default, and the model given for this run wins over
+// one exported in the environment.
+func TestCommandBackendReceivesModel(t *testing.T) {
+	const echoModel = `printf '%s' "${WEBCTL_SUMMARIZE_MODEL:-own-default}"`
+
+	t.Setenv(ModelEnv, "")
+	s, _ := New(Config{Command: echoModel})
+	if out, _, err := s.Summarize(context.Background(), sample); err != nil || out != "own-default" {
+		t.Errorf("no model: got %q, %v; want the command's own default", out, err)
+	}
+
+	s, _ = New(Config{Command: echoModel, Model: "haiku"})
+	if out, _, err := s.Summarize(context.Background(), sample); err != nil || out != "haiku" {
+		t.Errorf("model haiku: got %q, %v", out, err)
+	}
+
+	t.Setenv(ModelEnv, "exported")
+	s, _ = New(Config{Command: echoModel, Model: "sonnet"})
+	if out, _, err := s.Summarize(context.Background(), sample); err != nil || out != "sonnet" {
+		t.Errorf("the run's model should beat the exported one: got %q, %v", out, err)
+	}
+}
+
 func TestCommandBackendFailures(t *testing.T) {
 	s, _ := New(Config{Command: "echo boom >&2; exit 3"})
 	if _, _, err := s.Summarize(context.Background(), sample); err == nil || !strings.Contains(err.Error(), "boom") {
@@ -151,6 +176,20 @@ func TestNewRequiresABackend(t *testing.T) {
 	}
 	if !(Config{Command: "x"}).Configured() || (Config{}).Configured() {
 		t.Error("Configured")
+	}
+	for _, tc := range []struct {
+		cfg  Config
+		want string
+	}{
+		{Config{}, ""},
+		{Config{Command: "x"}, BackendCommand},
+		{Config{Endpoint: "https://x", Model: "m"}, BackendEndpoint},
+		{Config{Command: "x", Endpoint: "https://x", Model: "m"}, BackendCommand},
+		{Config{Command: "  "}, ""},
+	} {
+		if got := tc.cfg.Backend(); got != tc.want {
+			t.Errorf("Backend(%+v) = %q, want %q", tc.cfg, got, tc.want)
+		}
 	}
 }
 

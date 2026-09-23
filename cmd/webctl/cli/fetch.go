@@ -60,7 +60,7 @@ provider cooling down, and costs no search quota.`,
 	f.IntVar(&ff.chunkChars, "chunk-chars", scrape.DefaultChunkChars, "chunk size in characters; judged with 20% overlap")
 	f.BoolVar(&ff.summarize, "summarize", false, "replace each page's kept text with a short summary from a small model (see `webctl docs summarize`)")
 	f.StringVar(&ff.sumCommand, "summarize-command", "", "summarizer command for this run, e.g. 'claude -p --model haiku' (overrides summarize.command)")
-	f.StringVar(&ff.sumModel, "summarize-model", "", "model for the configured summarize.endpoint for this run")
+	f.StringVar(&ff.sumModel, "summarize-model", "", "summarizer model for this run: sent to summarize.endpoint, or to summarize.command as $WEBCTL_SUMMARIZE_MODEL")
 	f.IntVar(&ff.maxOutput, "max-output", DefaultMaxOutput, "cap printed output in characters, trimming page content top-down; 0 = unlimited")
 	f.BoolVar(&ff.jsonOut, "json", false, "JSON output")
 	f.BoolVarP(&ff.verbose, "verbose", "v", false, "show what each page's filter and summary did")
