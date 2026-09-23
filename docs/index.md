@@ -6,6 +6,7 @@ Full reference. `--help` is deliberately short; these pages hold the detail. One
 |---|---|
 | `search` | the search pipeline, every flag, output formats, exit codes |
 | `fetch` | reading pages you already have the URL for, reduced to what the goal needs; no provider, no search quota |
+| `context` | a TOON briefing for an agent's context window, with the live state that decides what will work; a session-start hook |
 | `providers` | the provider chain, `sources`, keyless vs. keyed, per-provider limits and cost |
 | `cooldowns` | rate-limit backoff: the ladder, the probe, the state file, how to tune or clear |
 | `filtering` | Jev scoring: the rubric, the threshold, `--noul`, custom rubrics, batch mode |

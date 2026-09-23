@@ -101,6 +101,7 @@ chunks Jev judges relevant to the goal are returned.`,
 	addSearchFlags(search)
 	root.AddCommand(search)
 	root.AddCommand(newFetchCmd())
+	root.AddCommand(newContextCmd())
 	root.AddCommand(newSetupCmd())
 	root.AddCommand(newKeysCmd())
 	root.AddCommand(newConfigCmd())
