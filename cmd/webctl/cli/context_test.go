@@ -93,6 +93,47 @@ func TestContextSummarizerThatWouldFail(t *testing.T) {
 	}
 }
 
+// Claude Code pre-approves a bare webctl command and sends anything with a
+// pipe or chain to the auto-mode classifier, so the Claude briefing names
+// the flags that replace head, cut, and background jobs. --summarize is
+// among them only when it would work.
+func TestContextForClaude(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		command     string
+		summarizeIn bool
+	}{
+		{"with summarizer", "some-cmd", true},
+		{"without summarizer", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, allKeys())
+			clearSummarizeEnv(t)
+			t.Setenv("WEBCTL_SUMMARIZE_COMMAND", tc.command)
+
+			out, _, err := h.run("context", "--claude")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{
+				"Prefer it over WebSearch and WebFetch.\n",
+				"jev: configured\n",
+				"help[6]:\n",
+				"A bare webctl command runs under the webctl allow rule.",
+				"Output is capped at 20000 chars by default.",
+				"fetch reads every URL it is given concurrently",
+			} {
+				if !strings.Contains(out, want) {
+					t.Errorf("missing %q in:\n%s", want, out)
+				}
+			}
+			if got := strings.Contains(out, "--summarize"); got != tc.summarizeIn {
+				t.Errorf("mentions --summarize = %v, want %v:\n%s", got, tc.summarizeIn, out)
+			}
+		})
+	}
+}
+
 func TestContextMissingJevKey(t *testing.T) {
 	h := newHarness(t, keys.Store{})
 	clearSummarizeEnv(t)

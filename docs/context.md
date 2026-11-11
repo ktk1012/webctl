@@ -30,12 +30,37 @@ The state fields are why this is a command rather than a fixed note. A briefing 
 
 `--summarize` is advertised in `help` only when it would work.
 
-## As a session-start hook
+## For Claude Code: `--claude`
 
-Claude Code adds a SessionStart hook's output to the conversation:
+`webctl context --claude` keeps the same fields and replaces `help` with what Claude Code's Bash tool needs to know. It assumes the setup below, where `Bash(webctl:*)` is allowed and the built-in web tools are denied.
 
-```json
-{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "webctl context"}]}]}}
+```
+help[6]:
+  A bare webctl command runs under the webctl allow rule. A pipe, 2>&1, redirect, cd or && prefix, loop, or background & puts it before the auto-mode classifier, which can deny it; stderr already reaches the tool result
+  Always pass --goal; the relevance filter judges against it
+  Output is capped at 20000 chars by default. For less, narrow --goal, then add --summarize (--summarize-model <name> picks its model), then lower --max-output; these replace head, tail, cut, sed, and grep
+  fetch reads every URL it is given concurrently; several searches are several bare calls in one message, not background jobs writing files
+  Add --scrape --filter-chunks to a search only when you would otherwise read a whole page
+  Run `webctl docs <topic>` for the full reference
 ```
 
-With no matcher it runs after `/clear` and compaction too, so the briefing survives both.
+Without it, Claude tends to write `cd <dir> && webctl … 2>&1 | head -40`, or several `webctl … > out.txt 2>&1 &` jobs followed by `head` on the files. An allow rule matches only the bare command, so each of these waits on the auto-mode classifier, and a piped call is sometimes denied. Each line of `help` names the flag that does the shell's job instead. The lines state facts rather than give orders, because Claude Code may show imperative hook context to the user instead of using it.
+
+## As a session-start hook
+
+Claude Code adds a SessionStart hook's output to the conversation, and a SubagentStart hook's `additionalContext` to a subagent's:
+
+```json
+{
+  "permissions": {
+    "allow": ["Bash(webctl:*)"],
+    "deny": ["WebSearch", "WebFetch"]
+  },
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "webctl context --claude"}]}],
+    "SubagentStart": [{"hooks": [{"type": "command", "command": "webctl context --claude | jq -Rs '{hookSpecificOutput: {hookEventName: \"SubagentStart\", additionalContext: .}}'"}]}]
+  }
+}
+```
+
+With no matcher, the SessionStart hook runs after `/clear` and compaction too, so the briefing survives both. Other agents take plain `webctl context`.
