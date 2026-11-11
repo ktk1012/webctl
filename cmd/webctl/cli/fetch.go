@@ -57,7 +57,7 @@ provider cooling down, and costs no search quota.`,
 	f := cmd.Flags()
 	f.StringVarP(&ff.goal, "goal", "g", "", "REQUIRED: what you need from these pages; every judge and the summarizer see it")
 	f.IntVar(&ff.maxChars, "max-chars", scrape.DefaultMaxChars, "cap text per page")
-	f.IntVar(&ff.chunkChars, "chunk-chars", scrape.DefaultChunkChars, "chunk size in characters; judged with 20% overlap")
+	f.IntVar(&ff.chunkChars, "chunk-chars", scrape.DefaultChunkChars, "chunk size in characters; judged with 10% overlap")
 	f.BoolVar(&ff.summarize, "summarize", false, "replace each page's kept text with a short summary from a small model (see `webctl docs summarize`)")
 	f.StringVar(&ff.sumCommand, "summarize-command", "", "summarizer command for this run, e.g. 'claude -p --model haiku' (overrides summarize.command)")
 	f.StringVar(&ff.sumModel, "summarize-model", "", "summarizer model for this run: sent to summarize.endpoint, or to summarize.command as $WEBCTL_SUMMARIZE_MODEL")

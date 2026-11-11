@@ -36,7 +36,7 @@ required, plus a summarizer backend if you pass `--summarize`.
 | `--summarize-command` | | summarizer command for this run, e.g. `'claude -p --model haiku'` |
 | `--summarize-model` | | model for the configured `summarize.endpoint` for this run |
 | `--max-chars` | 50000 | cap text per page before chunking |
-| `--chunk-chars` | 2000 | chunk size in characters; judged with 20% overlap |
+| `--chunk-chars` | 2000 | chunk size in characters; judged with 10% overlap |
 | `--max-output` | 20000 | cap printed output in characters, trimming content top-down; 0 = unlimited |
 | `--json` | off | JSON array on stdout; diagnostics stay on stderr |
 | `--verbose`, `-v` | off | show what each page's filter and summary did |

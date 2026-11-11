@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -79,6 +81,22 @@ func TestCommandBackendFailures(t *testing.T) {
 	}
 	if time.Since(start) > 3*time.Second {
 		t.Error("timeout did not cut the command short")
+	}
+
+	// A wrapper that forks a child: the timeout must kill the child too,
+	// not just the shell, or the child keeps our stdout pipe open.
+	marker := filepath.Join(t.TempDir(), "child-ran")
+	s, _ = New(Config{Command: "(sleep 1; echo x > " + marker + ") & wait", Timeout: 100 * time.Millisecond})
+	start = time.Now()
+	if _, _, err := s.Summarize(context.Background(), sample); err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("wrapper timeout: %v", err)
+	}
+	if time.Since(start) > 3*time.Second {
+		t.Error("timeout did not cut the wrapper short")
+	}
+	time.Sleep(1500 * time.Millisecond)
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("the wrapper's child outlived the timeout")
 	}
 }
 

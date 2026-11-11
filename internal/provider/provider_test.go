@@ -166,8 +166,12 @@ func TestParallelSearch(t *testing.T) {
 	if c.Headers.Get("Authorization") != "Bearer par-key" {
 		t.Errorf("Authorization = %q", c.Headers.Get("Authorization"))
 	}
-	if c.Body["max_results"] != float64(4) || c.Body["query"] != "q" {
+	sq, _ := c.Body["search_queries"].([]any)
+	if len(sq) != 1 || sq[0] != "q" {
 		t.Errorf("body = %v", c.Body)
+	}
+	if _, ok := c.Body["max_results"]; ok {
+		t.Errorf("API rejects max_results; the limit must be local: %v", c.Body)
 	}
 	want := []SearchResult{
 		{Title: "One", URL: "https://one.example", Snippet: "snip"},
@@ -176,6 +180,15 @@ func TestParallelSearch(t *testing.T) {
 		{Title: "Four", URL: "https://four.example", Snippet: "desc"},
 	}
 	assertResults(t, got, want)
+
+	// The API takes no result limit, so Search applies it locally.
+	got, err = p.Search(context.Background(), "q", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Errorf("got %d results, want 2", len(got))
+	}
 }
 
 func TestParallelErrors(t *testing.T) {
@@ -261,8 +274,8 @@ func TestSonarValidate(t *testing.T) {
 	if err := p.Validate(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if c.Body["max_tokens"] != float64(1) {
-		t.Errorf("validate should cap max_tokens at 1, got %v", c.Body["max_tokens"])
+	if c.Body["max_tokens"] != float64(16) {
+		t.Errorf("validate should cap max_tokens at Perplexity's minimum, 16, got %v", c.Body["max_tokens"])
 	}
 }
 

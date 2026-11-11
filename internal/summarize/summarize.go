@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dorkitude/webctl/internal/prompts"
@@ -188,6 +189,17 @@ func (c *commandSummarizer) Summarize(ctx context.Context, in Input) (string, Us
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	// The command is a shell line, so the real work often runs in a child
+	// of sh (a wrapper script, a pipeline). Killing only sh on timeout
+	// leaves that child alive and holding our stdout pipe, and Wait would
+	// then block until it exits on its own. Run the command in its own
+	// process group so the timeout kills the whole tree, and bound the
+	// wait on the pipes in case something still escapes.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	cmd.WaitDelay = time.Second
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
 			return "", Usage{}, fmt.Errorf("summarize command timed out after %s", c.timeout)
